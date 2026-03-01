@@ -1,52 +1,70 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Frederick Tag 3D</title>
+    <title>Frederick Tag VR</title>
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     
     <script>
-      AFRAME.registerComponent('gorilla-hand-logic', {
+      // This script handles the "Gorilla" jumping physics
+      AFRAME.registerComponent('gorilla-hand', {
         init: function () {
+          this.prevPos = new THREE.Vector3();
           this.el.addEventListener('collide', (e) => {
             const rig = document.querySelector('#player-rig');
-            // If hand hits a static object (ground/wall)
-            if (e.detail.body.el.getAttribute('static-body') !== null) {
-              // Pushes the player based on the hand's downward motion
-              const impulse = new CANNON.Vec3(0, 7, -4); 
+            const handPos = new THREE.Vector3();
+            this.el.object3D.getWorldPosition(handPos);
+            
+            // Calculate how fast you "slapped" the ground
+            const velocity = handPos.clone().sub(this.prevPos).length();
+            
+            // If moving fast enough, push the player up and forward
+            if (velocity > 0.02) {
+              const jumpPower = velocity * 180; 
+              const impulse = new CANNON.Vec3(0, jumpPower, -jumpPower * 0.4);
               rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(rig.object3D.position));
               
-              // Vibration/Haptics for that 2026 "feel"
+              // Haptic Feedback (Vibration)
               if (this.el.components['tracked-controls']) {
-                this.el.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.5, 100);
+                const gamepad = this.el.components['tracked-controls'].controller.gamepad;
+                if (gamepad.hapticActuators.length > 0) {
+                  gamepad.hapticActuators[0].pulse(0.6, 120);
+                }
               }
             }
           });
+        },
+        tick: function () {
+          // Keep track of hand movement for the next frame
+          this.el.object3D.getWorldPosition(this.prevPos);
         }
       });
     </script>
   </head>
   <body>
-    <a-scene physics="gravity: -9.8; iterations: 20">
+    <a-scene physics="gravity: -9.8; iterations: 20; debug: false">
       
       <a-sky color="#87CEEB"></a-sky>
       <a-plane static-body position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27"></a-plane>
       
-      <a-cylinder static-body position="-5 2 -10" radius="1" height="4" color="#5C4033"></a-cylinder>
-      <a-cylinder static-body position="5 2 -8" radius="1" height="4" color="#5C4033"></a-cylinder>
+      <a-box static-body position="0 0.5 -5" width="4" height="1" depth="4" color="#5C4033"></a-box>
+      <a-box static-body position="-6 1.5 -8" width="3" height="3" depth="3" color="#5C4033"></a-box>
 
-      <a-entity id="player-rig" dynamic-body="mass: 15; fixedRotation: true" position="0 2 0">
-        <a-camera look-controls></a-camera>
+      <a-entity id="player-rig" dynamic-body="mass: 15; fixedRotation: true" position="0 3 0">
+        <a-camera look-controls="pointerLockEnabled: true"></a-camera>
         
-        <a-box id="leftHand" gorilla-hand-logic static-body="shape: box" 
-               hand-controls="hand: left" width="0.2" height="0.1" depth="0.2" color="#4b3621">
-          <a-box position="0 0 -0.1" width="0.1" height="0.05" depth="0.1" color="#3b2b1a"></a-box> </a-box>
+        <a-box id="leftHand" gorilla-hand static-body="shape: box" 
+               hand-controls="hand: left" width="0.25" height="0.12" depth="0.25" color="#4b3621">
+          <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
+        </a-box>
         
-        <a-box id="rightHand" gorilla-hand-logic static-body="shape: box" 
-               hand-controls="hand: right" width="0.2" height="0.1" depth="0.2" color="#4b3621">
-          <a-box position="0 0 -0.1" width="0.1" height="0.05" depth="0.1" color="#3b2b1a"></a-box> </a-box>
+        <a-box id="rightHand" gorilla-hand static-body="shape: box" 
+               hand-controls="hand: right" width="0.25" height="0.12" depth="0.25" color="#4b3621">
+          <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
+        </a-box>
       </a-entity>
 
     </a-scene>
   </body>
 </html>
+
