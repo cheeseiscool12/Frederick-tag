@@ -1,55 +1,50 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Frederick Tag VR</title>
+    <title>Frederick Tag 3D</title>
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     
     <script>
-      AFRAME.registerComponent('gorilla-movement', {
+      AFRAME.registerComponent('gorilla-hand-logic', {
         init: function () {
-          this.prevPos = new THREE.Vector3();
           this.el.addEventListener('collide', (e) => {
-            const rig = document.querySelector('#rig');
-            const handPos = new THREE.Vector3();
-            this.el.object3D.getWorldPosition(handPos);
-            
-            // Calculate how fast the hand was moving on impact
-            const velocity = handPos.clone().sub(this.prevPos).length();
-            
-            if (velocity > 0.01) { // Only jump if hand is moving
-                const jumpStrength = velocity * 150; // Adjust for higher/lower jumps
-                const force = new CANNON.Vec3(0, jumpStrength, -jumpStrength * 0.5);
-                rig.body.applyImpulse(force, new CANNON.Vec3().copy(rig.object3D.position));
+            const rig = document.querySelector('#player-rig');
+            // If hand hits a static object (ground/wall)
+            if (e.detail.body.el.getAttribute('static-body') !== null) {
+              // Pushes the player based on the hand's downward motion
+              const impulse = new CANNON.Vec3(0, 7, -4); 
+              rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(rig.object3D.position));
+              
+              // Vibration/Haptics for that 2026 "feel"
+              if (this.el.components['tracked-controls']) {
+                this.el.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.5, 100);
+              }
             }
           });
-        },
-        tick: function () {
-          // Track hand position every frame to calculate speed
-          this.el.object3D.getWorldPosition(this.prevPos);
         }
       });
     </script>
   </head>
   <body>
-    <a-scene physics="gravity: -9.8; debug: false; iterations: 10">
+    <a-scene physics="gravity: -9.8; iterations: 20">
       
-      <a-sky color="#222"></a-sky>
-      <a-plane static-body position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#444"></a-plane>
+      <a-sky color="#87CEEB"></a-sky>
+      <a-plane static-body position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27"></a-plane>
       
-      <a-box static-body position="0 0.5 -5" width="4" height="1" depth="4" color="orange"></a-box>
-      <a-box static-body position="-6 1.5 -8" width="3" height="3" depth="3" color="red"></a-box>
+      <a-cylinder static-body position="-5 2 -10" radius="1" height="4" color="#5C4033"></a-cylinder>
+      <a-cylinder static-body position="5 2 -8" radius="1" height="4" color="#5C4033"></a-cylinder>
 
-      <a-entity id="rig" dynamic-body="mass: 10; fixedRotation: true" position="0 2 0">
-        <a-camera look-controls="pointerLockEnabled: true"></a-camera>
+      <a-entity id="player-rig" dynamic-body="mass: 15; fixedRotation: true" position="0 2 0">
+        <a-camera look-controls></a-camera>
         
-        <a-sphere id="leftHand" gorilla-movement static-body="shape: sphere" 
-                  hand-controls="hand: left" radius="0.15" color="blue" opacity="0.7">
-        </a-sphere>
+        <a-box id="leftHand" gorilla-hand-logic static-body="shape: box" 
+               hand-controls="hand: left" width="0.2" height="0.1" depth="0.2" color="#4b3621">
+          <a-box position="0 0 -0.1" width="0.1" height="0.05" depth="0.1" color="#3b2b1a"></a-box> </a-box>
         
-        <a-sphere id="rightHand" gorilla-movement static-body="shape: sphere" 
-                  hand-controls="hand: right" radius="0.15" color="red" opacity="0.7">
-        </a-sphere>
+        <a-box id="rightHand" gorilla-hand-logic static-body="shape: box" 
+               hand-controls="hand: right" width="0.2" height="0.1" depth="0.2" color="#4b3621">
+          <a-box position="0 0 -0.1" width="0.1" height="0.05" depth="0.1" color="#3b2b1a"></a-box> </a-box>
       </a-entity>
 
     </a-scene>
