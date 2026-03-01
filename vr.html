@@ -2,9 +2,10 @@
 <html>
   <head>
     <title>Frederick Tag VR</title>
+    <!-- A-Frame MUST load first, synchronously, before any AFRAME.registerComponent calls -->
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
-    
+    <!-- Component registration runs immediately after A-Frame is defined, before <a-scene> is parsed -->
     <script>
       AFRAME.registerComponent('gorilla-locomotion', {
         init: function () {
@@ -13,82 +14,106 @@
           this.rightHand = document.querySelector('#rightHand');
           this.prevLeft = new THREE.Vector3();
           this.prevRight = new THREE.Vector3();
+          this.prevLeftValid = false;
+          this.prevRightValid = false;
+          this.GROUND_Y = 0.35;
+          this.IMPULSE_SCALE = 300;
         },
-        tick: function () {
-          if (!this.rig.body) return;
 
-          let leftPos = new THREE.Vector3();
-          let rightPos = new THREE.Vector3();
+        tick: function () {
+          if (!this.rig || !this.rig.body) return;
+
+          var leftPos = new THREE.Vector3();
+          var rightPos = new THREE.Vector3();
           this.leftHand.object3D.getWorldPosition(leftPos);
           this.rightHand.object3D.getWorldPosition(rightPos);
 
-          let impulse = new CANNON.Vec3(0, 0, 0);
-          let touchingGround = false;
+          var impulse = new CANNON.Vec3(0, 0, 0);
+          var touchingGround = false;
 
-          // Detect ground contact (Y=0.15)
-          if (leftPos.y <= 0.15) {
+          if (leftPos.y <= this.GROUND_Y && this.prevLeftValid) {
             touchingGround = true;
-            let delta = leftPos.clone().sub(this.prevLeft);
-            impulse.x -= delta.x * 250;
-            impulse.y -= delta.y * 250;
-            impulse.z -= delta.z * 250;
+            impulse.x -= (leftPos.x - this.prevLeft.x) * this.IMPULSE_SCALE;
+            impulse.z -= (leftPos.z - this.prevLeft.z) * this.IMPULSE_SCALE;
           }
 
-          if (rightPos.y <= 0.15) {
+          if (rightPos.y <= this.GROUND_Y && this.prevRightValid) {
             touchingGround = true;
-            let delta = rightPos.clone().sub(this.prevRight);
-            impulse.x -= delta.x * 250;
-            impulse.y -= delta.y * 250;
-            impulse.z -= delta.z * 250;
+            impulse.x -= (rightPos.x - this.prevRight.x) * this.IMPULSE_SCALE;
+            impulse.z -= (rightPos.z - this.prevRight.z) * this.IMPULSE_SCALE;
           }
 
           if (touchingGround) {
-            // Stop downward fall velocity on contact
             if (this.rig.body.velocity.y < 0) {
               this.rig.body.velocity.y = 0;
             }
-            
-            // Apply movement push
-            if (Math.abs(impulse.x) > 0 || Math.abs(impulse.y) > 0 || Math.abs(impulse.z) > 0) {
-              this.rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(this.rig.object3D.position));
-              
-              // Vibration feedback
+
+            var mag = Math.sqrt(impulse.x * impulse.x + impulse.z * impulse.z);
+            if (mag > 80) {
+              impulse.x = (impulse.x / mag) * 80;
+              impulse.z = (impulse.z / mag) * 80;
+            }
+
+            if (mag > 0.01) {
+              this.rig.body.applyImpulse(impulse, new CANNON.Vec3(0, 0, 0));
               try {
-                this.leftHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
-                this.rightHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
-              } catch (e) {}
+                var lc = this.leftHand.components['tracked-controls'];
+                if (lc && lc.controller) lc.controller.gamepad.hapticActuators[0].pulse(0.2, 30);
+              } catch(e) {}
+              try {
+                var rc = this.rightHand.components['tracked-controls'];
+                if (rc && rc.controller) rc.controller.gamepad.hapticActuators[0].pulse(0.2, 30);
+              } catch(e) {}
             }
           }
 
+          // Friction-like damping
+          this.rig.body.velocity.x *= 0.88;
+          this.rig.body.velocity.z *= 0.88;
+
           this.prevLeft.copy(leftPos);
           this.prevRight.copy(rightPos);
+          this.prevLeftValid = true;
+          this.prevRightValid = true;
         }
       });
     </script>
   </head>
   <body>
     <a-scene physics="gravity: -9.8" gorilla-locomotion>
-      
+
       <a-sky color="#87CEEB"></a-sky>
+
+      <!-- Ground -->
       <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27" static-body></a-plane>
 
-      <a-entity id="player-rig" 
-                dynamic-body="mass: 10; shape: sphere; sphereRadius: 0.2; fixedRotation: true; angularDamping: 1" 
-                position="0 10 0">
+      <!-- Obstacles -->
+      <a-box position="3 0.5 -5"  width="1"   height="1" depth="1" color="#e74c3c" static-body></a-box>
+      <a-box position="-4 0.5 -3" width="1.5" height="1" depth="1" color="#3498db" static-body></a-box>
+      <a-cylinder position="0 1 -8" radius="0.5" height="2" color="#f1c40f" static-body></a-cylinder>
+      <a-sphere position="6 0.5 -6" radius="0.5" color="#9b59b6" static-body></a-sphere>
+
+      <!-- Player rig — starts 1.5m above ground -->
+      <a-entity id="player-rig"
+                dynamic-body="mass: 10; shape: sphere; sphereRadius: 0.3; fixedRotation: true; linearDamping: 0.3; angularDamping: 1"
+                position="0 1.5 0">
+
         <a-camera look-controls="pointerLockEnabled: true"></a-camera>
-        
+
         <a-box id="leftHand" hand-controls="hand: left" width="0.25" height="0.12" depth="0.25" color="#4b3621">
           <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
         </a-box>
-        
+
         <a-box id="rightHand" hand-controls="hand: right" width="0.25" height="0.12" depth="0.25" color="#4b3621">
           <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
         </a-box>
+
       </a-entity>
 
     </a-scene>
   </body>
 </html>
+
 
 
 
