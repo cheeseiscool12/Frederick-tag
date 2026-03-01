@@ -6,60 +6,85 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     
     <script>
-      // This script handles the "Gorilla" jumping physics
-      AFRAME.registerComponent('gorilla-hand', {
+      // Custom script to make hands support your body weight
+      AFRAME.registerComponent('gorilla-locomotion', {
         init: function () {
-          this.prevPos = new THREE.Vector3();
-          this.el.addEventListener('collide', (e) => {
-            const rig = document.querySelector('#player-rig');
-            const handPos = new THREE.Vector3();
-            this.el.object3D.getWorldPosition(handPos);
-            
-            // Calculate how fast you "slapped" the ground
-            const velocity = handPos.clone().sub(this.prevPos).length();
-            
-            // If moving fast enough, push the player up and forward
-            if (velocity > 0.02) {
-              const jumpPower = velocity * 180; 
-              const impulse = new CANNON.Vec3(0, jumpPower, -jumpPower * 0.4);
-              rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(rig.object3D.position));
-              
-              // Haptic Feedback (Vibration)
-              if (this.el.components['tracked-controls']) {
-                const gamepad = this.el.components['tracked-controls'].controller.gamepad;
-                if (gamepad.hapticActuators.length > 0) {
-                  gamepad.hapticActuators[0].pulse(0.6, 120);
-                }
-              }
-            }
-          });
+          this.rig = document.querySelector('#player-rig');
+          this.leftHand = document.querySelector('#leftHand');
+          this.rightHand = document.querySelector('#rightHand');
+          
+          // Store hand positions to calculate speed
+          this.prevLeft = new THREE.Vector3();
+          this.prevRight = new THREE.Vector3();
         },
         tick: function () {
-          // Keep track of hand movement for the next frame
-          this.el.object3D.getWorldPosition(this.prevPos);
+          if (!this.rig.body) return; // Wait for physics engine to start
+
+          let leftPos = new THREE.Vector3();
+          let rightPos = new THREE.Vector3();
+          this.leftHand.object3D.getWorldPosition(leftPos);
+          this.rightHand.object3D.getWorldPosition(rightPos);
+
+          let impulse = new CANNON.Vec3(0, 0, 0);
+          let touchingGround = false;
+
+          // The ground is at Y = 0. If a hand is at Y = 0.15 or lower, it's touching the ground.
+          if (leftPos.y <= 0.15) {
+            touchingGround = true;
+            let delta = leftPos.clone().sub(this.prevLeft);
+            // Push the player in the exact OPPOSITE direction the hand is moving
+            impulse.x -= delta.x * 250;
+            impulse.y -= delta.y * 250;
+            impulse.z -= delta.z * 250;
+          }
+
+          if (rightPos.y <= 0.15) {
+            touchingGround = true;
+            let delta = rightPos.clone().sub(this.prevRight);
+            impulse.x -= delta.x * 250;
+            impulse.y -= delta.y * 250;
+            impulse.z -= delta.z * 250;
+          }
+
+          if (touchingGround) {
+            // 1. STOP FALLING: Counteract gravity when hands are on the floor
+            if (this.rig.body.velocity.y < 0) {
+              this.rig.body.velocity.y = 0;
+            }
+            
+            // 2. MOVE: Apply the jumping force if you swing your arms
+            if (Math.abs(impulse.x) > 0 || Math.abs(impulse.y) > 0 || Math.abs(impulse.z) > 0) {
+              this.rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(this.rig.object3D.position));
+              
+              // 3. VIBRATE: Make controllers shake when you hit the floor
+              try {
+                this.leftHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
+                this.rightHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
+              } catch (e) {} // Ignore error if controllers haven't loaded yet
+            }
+          }
+
+          // Save positions for the next frame
+          this.prevLeft.copy(leftPos);
+          this.prevRight.copy(rightPos);
         }
       });
     </script>
   </head>
   <body>
-    <a-scene physics="gravity: -9.8; iterations: 20; debug: false">
+    <a-scene physics="gravity: -9.8" gorilla-locomotion>
       
       <a-sky color="#87CEEB"></a-sky>
-      <a-plane static-body position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27"></a-plane>
-      
-      <a-box static-body position="0 0.5 -5" width="4" height="1" depth="4" color="#5C4033"></a-box>
-      <a-box static-body position="-6 1.5 -8" width="3" height="3" depth="3" color="#5C4033"></a-box>
+      <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27"></a-plane>
 
-      <a-entity id="player-rig" dynamic-body="mass: 15; fixedRotation: true" position="0 3 0">
+      <a-entity id="player-rig" dynamic-body="mass: 10; shape: sphere; sphereRadius: 0.1" position="0 15 0">
         <a-camera look-controls="pointerLockEnabled: true"></a-camera>
         
-        <a-box id="leftHand" gorilla-hand static-body="shape: box" 
-               hand-controls="hand: left" width="0.25" height="0.12" depth="0.25" color="#4b3621">
+        <a-box id="leftHand" hand-controls="hand: left" width="0.25" height="0.12" depth="0.25" color="#4b3621">
           <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
         </a-box>
         
-        <a-box id="rightHand" gorilla-hand static-body="shape: box" 
-               hand-controls="hand: right" width="0.25" height="0.12" depth="0.25" color="#4b3621">
+        <a-box id="rightHand" hand-controls="hand: right" width="0.25" height="0.12" depth="0.25" color="#4b3621">
           <a-box position="0 0 -0.1" width="0.15" height="0.06" depth="0.12" color="#3b2b1a"></a-box>
         </a-box>
       </a-entity>
@@ -67,4 +92,5 @@
     </a-scene>
   </body>
 </html>
+
 
