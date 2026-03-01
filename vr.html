@@ -6,19 +6,16 @@
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     
     <script>
-      // Custom script to make hands support your body weight
       AFRAME.registerComponent('gorilla-locomotion', {
         init: function () {
           this.rig = document.querySelector('#player-rig');
           this.leftHand = document.querySelector('#leftHand');
           this.rightHand = document.querySelector('#rightHand');
-          
-          // Store hand positions to calculate speed
           this.prevLeft = new THREE.Vector3();
           this.prevRight = new THREE.Vector3();
         },
         tick: function () {
-          if (!this.rig.body) return; // Wait for physics engine to start
+          if (!this.rig.body) return;
 
           let leftPos = new THREE.Vector3();
           let rightPos = new THREE.Vector3();
@@ -28,11 +25,10 @@
           let impulse = new CANNON.Vec3(0, 0, 0);
           let touchingGround = false;
 
-          // The ground is at Y = 0. If a hand is at Y = 0.15 or lower, it's touching the ground.
+          // Detect ground contact (Y=0.15)
           if (leftPos.y <= 0.15) {
             touchingGround = true;
             let delta = leftPos.clone().sub(this.prevLeft);
-            // Push the player in the exact OPPOSITE direction the hand is moving
             impulse.x -= delta.x * 250;
             impulse.y -= delta.y * 250;
             impulse.z -= delta.z * 250;
@@ -47,24 +43,23 @@
           }
 
           if (touchingGround) {
-            // 1. STOP FALLING: Counteract gravity when hands are on the floor
+            // Stop downward fall velocity on contact
             if (this.rig.body.velocity.y < 0) {
               this.rig.body.velocity.y = 0;
             }
             
-            // 2. MOVE: Apply the jumping force if you swing your arms
+            // Apply movement push
             if (Math.abs(impulse.x) > 0 || Math.abs(impulse.y) > 0 || Math.abs(impulse.z) > 0) {
               this.rig.body.applyImpulse(impulse, new CANNON.Vec3().copy(this.rig.object3D.position));
               
-              // 3. VIBRATE: Make controllers shake when you hit the floor
+              // Vibration feedback
               try {
                 this.leftHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
                 this.rightHand.components['tracked-controls'].controller.gamepad.hapticActuators[0].pulse(0.3, 50);
-              } catch (e) {} // Ignore error if controllers haven't loaded yet
+              } catch (e) {}
             }
           }
 
-          // Save positions for the next frame
           this.prevLeft.copy(leftPos);
           this.prevRight.copy(rightPos);
         }
@@ -75,9 +70,11 @@
     <a-scene physics="gravity: -9.8" gorilla-locomotion>
       
       <a-sky color="#87CEEB"></a-sky>
-      <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27"></a-plane>
+      <a-plane position="0 0 0" rotation="-90 0 0" width="100" height="100" color="#2d5a27" static-body></a-plane>
 
-      <a-entity id="player-rig" dynamic-body="mass: 10; shape: sphere; sphereRadius: 0.1" position="0 15 0">
+      <a-entity id="player-rig" 
+                dynamic-body="mass: 10; shape: sphere; sphereRadius: 0.2; fixedRotation: true; angularDamping: 1" 
+                position="0 10 0">
         <a-camera look-controls="pointerLockEnabled: true"></a-camera>
         
         <a-box id="leftHand" hand-controls="hand: left" width="0.25" height="0.12" depth="0.25" color="#4b3621">
@@ -92,5 +89,6 @@
     </a-scene>
   </body>
 </html>
+
 
 
