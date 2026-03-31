@@ -1,0 +1,13 @@
+{
+  "background_color": "#c8b560",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "The Ape Rooms",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "The Ape Rooms",
+  "start_url": "/",
+  "theme_color": "#1a1400",
+  "id": "the-ape-rooms",
+  "description": "Survive Level 0. Find the flashlight. Don't let it touch you."
+}
