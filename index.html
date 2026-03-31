@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>The Ape Rooms</title>
+<meta name="application-name" content="The Ape Rooms">
+<meta name="theme-color" content="#c8b560">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-512.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1400;overflow:hidden;font-family:monospace}
+canvas{display:block;width:100vw;height:100vh}
+#overlay{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.88);z-index:100;color:#c8b560}
+#overlay h1{font-size:clamp(2rem,6vw,4rem);letter-spacing:.3em;text-transform:uppercase;text-shadow:0 0 30px #c8b56088;margin-bottom:1rem}
+#overlay p{font-size:.95rem;color:#aaa;margin-bottom:2rem;text-align:center;max-width:500px;line-height:1.8}
+.btn-row{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.btn-gold{padding:14px 48px;background:transparent;border:2px solid #c8b560;color:#c8b560;font-family:monospace;font-size:1.1rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.btn-gold:hover{background:#c8b56022;box-shadow:0 0 20px #c8b56055}
+.btn-vr{padding:14px 36px;background:transparent;border:2px solid #7af;color:#7af;font-family:monospace;font-size:1.1rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:all .2s;display:none}
+.btn-vr:hover{background:#7af2}
+#vrNote{display:none;font-size:.78rem;color:#f87;margin-top:10px}
+#deathScreen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(80,0,0,.92);z-index:200;color:#ff2222}
+#deathScreen h1{font-size:clamp(3rem,8vw,6rem);letter-spacing:.3em;animation:flicker .5s infinite}
+@keyframes flicker{0%,100%{opacity:1}50%{opacity:.6}}
+#deathScreen p{color:#ff8888;margin:1rem 0 2rem}
+.btn-red{padding:12px 40px;background:transparent;border:2px solid #ff2222;color:#ff2222;font-family:monospace;font-size:1rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.btn-red:hover{background:#ff222222}
+#joyZone{position:fixed;bottom:30px;left:30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.2);touch-action:none;z-index:50;display:none}
+#joyKnob{position:absolute;width:54px;height:54px;border-radius:50%;background:rgba(200,181,96,.7);border:2px solid #c8b560;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+#lkZone{position:fixed;bottom:30px;right:30px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.12);touch-action:none;z-index:50;display:none}
+#lkKnob{position:absolute;width:54px;height:54px;border-radius:50%;background:rgba(180,180,255,.5);border:2px solid rgba(180,180,255,.8);left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none}
+#hud{position:fixed;top:16px;left:50%;transform:translateX(-50%);color:#c8b560;font-size:.7rem;letter-spacing:.18em;text-shadow:0 0 8px #c8b560;z-index:50;display:none;text-align:center}
+#mDist{font-size:.65rem;color:#f66;margin-top:3px}
+#pickupPrompt{position:fixed;bottom:22%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);border:1px solid #c8b560;color:#c8b560;padding:8px 22px;font-size:.8rem;letter-spacing:.15em;border-radius:3px;display:none;z-index:55}
+#flashStatus{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);color:#ffe066;font-size:.7rem;letter-spacing:.12em;display:none;z-index:55}
+#vig{position:fixed;inset:0;pointer-events:none;z-index:60;transition:background .3s}
+#xhair{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:12px;height:12px;pointer-events:none;z-index:55;display:none}
+#xhair::before,#xhair::after{content:'';position:absolute;background:rgba(255,255,255,.55)}
+#xhair::before{width:2px;height:100%;left:50%;transform:translateX(-50%)}
+#xhair::after{width:100%;height:2px;top:50%;transform:translateY(-50%)}
+#splash{position:fixed;inset:0;background:#1a1400;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;z-index:300}
+#splashTitle{color:#c8b560;font-size:clamp(2rem,6vw,3.5rem);letter-spacing:.4em;text-transform:uppercase;text-shadow:0 0 40px #c8b560aa}
+#splashBar{width:280px;height:3px;background:#333;border-radius:2px;overflow:hidden}
+#splashFill{height:100%;width:0%;background:#c8b560;transition:width .4s}
+#splashSub{color:#666;font-size:.75rem;letter-spacing:.15em}
+#mobileFlBtn{position:fixed;bottom:175px;right:30px;z-index:55;display:none;padding:10px 18px;background:rgba(0,0,0,.6);border:2px solid #c8b560;color:#c8b560;font-family:monospace;font-size:.9rem;cursor:pointer;border-radius:4px}
+</style>
+</head>
+<body>
+<div id="splash">
+  <div id="splashTitle">THE APE ROOMS</div>
+  <div id="splashBar"><div id="splashFill"></div></div>
+  <div id="splashSub">LOADING...</div>
+</div>
+<div id="overlay">
+  <h1>THE APE ROOMS</h1>
+  <p>You are trapped. Something is hunting you.<br><br>
+  Find the flashlight on the desk near spawn.<br>
+  Shine it at the monster to push it back.<br><br>
+  <b>Desktop:</b> WASD + mouse &middot; <b>E</b> pick up &middot; <b>F</b> toggle<br>
+  <b>Mobile:</b> Left stick = move &middot; Right stick = look &middot; Tap <b>F</b><br>
+  <b>VR:</b> Left thumbstick = move &middot; Right trigger = flashlight</p>
+  <div class="btn-row">
+    <button id="startBtn" class="btn-gold">ENTER</button>
+    <button id="vrBtn" class="btn-vr">&#11035; ENTER VR</button>
+  </div>
+  <div id="vrNote"></div>
+</div>
+<div id="deathScreen">
+  <h1>YOU DIED</h1><p>The entity got you.</p>
+  <div class="btn-row">
+    <button id="restartBtn" class="btn-red">TRY AGAIN</button>
+    <button id="restartVrBtn" class="btn-vr">&#11035; TRY IN VR</button>
+  </div>
+</div>
+<canvas id="canvas"></canvas>
+<div id="joyZone"><div id="joyKnob"></div></div>
+<div id="lkZone"><div id="lkKnob"></div></div>
+<button id="mobileFlBtn">F</button>
+<div id="hud">THE APE ROOMS<div id="mDist"></div></div>
+<div id="pickupPrompt">[ E ] Pick up Flashlight</div>
+<div id="flashStatus"></div>
+<div id="vig"></div>
+<div id="xhair"></div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+(async()=>{
+const $=id=>document.getElementById(id);
+const prog=(p,msg)=>{$('splashFill').style.width=p+'%';$('splashSub').textContent=msg;};
+function loadGLB(url){return new Promise((ok,err)=>new THREE.GLTFLoader().load(url,ok,null,err));}
+
+prog(5,'LOADING MAP...');     const mapGltf=await loadGLB('map.glb');
+prog(30,'LOADING MONSTER...'); const monsterGltf=await loadGLB('monster.glb');
+prog(50,'LOADING FLASHLIGHT...');const flashGltf=await loadGLB('flashlight.glb');
+prog(72,'LOADING DESK...');    const deskGltf=await loadGLB('desk.glb');
+prog(90,'BUILDING WORLD...');
+
+const canvas=$('canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+renderer.shadowMap.enabled=false;
+renderer.xr.enabled=true;
+renderer.toneMappingExposure=2.0;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x8a7a40);
+scene.fog=new THREE.Fog(0x8a7a40,18,55);
+const weaponScene=new THREE.Scene(),weaponCam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.01,10);
+const playerRig=new THREE.Group();scene.add(playerRig);
+const worldCam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.05,80);
+worldCam.position.set(0,1.6,0);playerRig.add(worldCam);
+
+scene.add(new THREE.AmbientLight(0xfff8e0,3.5));
+scene.add(new THREE.HemisphereLight(0xffffff,0xf0d890,2.0));
+const fillLights=[];
+for(let x=-30;x<=30;x+=6)for(let z=-30;z<=30;z+=6){const l=new THREE.PointLight(0xfffde0,2.5,20);l.position.set(x,3,z);scene.add(l);fillLights.push({l,base:l.intensity,ph:Math.random()*Math.PI*2});}
+const monsterLight=new THREE.PointLight(0xffffff,3.0,12);scene.add(monsterLight);
+const flashSpot=new THREE.SpotLight(0xfff8e0,0,35,Math.PI/7,.12,.8);worldCam.add(flashSpot);
+const fTgt=new THREE.Object3D();fTgt.position.set(0,0,-1);worldCam.add(fTgt);flashSpot.target=fTgt;
+weaponScene.add(new THREE.AmbientLight(0xffffff,1.0));
+const weaponFill=new THREE.PointLight(0xfff8e0,0,3);weaponScene.add(weaponFill);
+
+const mapRoot=mapGltf.scene;
+mapRoot.traverse(o=>{if(!o.isMesh)return;o.castShadow=false;o.receiveShadow=false;[o.material].flat().forEach(m=>{if(!m)return;if(m.map)m.map.anisotropy=2;if(m.color)m.color.multiplyScalar(1.6);m.needsUpdate=true;});});
+mapRoot.scale.setScalar(28/32.57);
+{const b=new THREE.Box3().setFromObject(mapRoot),c=new THREE.Vector3();b.getCenter(c);mapRoot.position.x-=c.x;mapRoot.position.z-=c.z;mapRoot.position.y-=b.min.y;}
+scene.add(mapRoot);
+const mapBox=new THREE.Box3().setFromObject(mapRoot);
+const FLOOR_Y=mapBox.min.y,MAP_H=mapBox.max.y-mapBox.min.y,PLAYER_H=MAP_H*.45;
+const MAP_MX=mapBox.min.x+2,MAP_XX=mapBox.max.x-2,MAP_MZ=mapBox.min.z+2,MAP_XZ=mapBox.max.z-2;
+const mapMeshes=[];
+mapRoot.traverse(o=>{if(!o.isMesh)return;const n=(o.name||'').toLowerCase();if(!n.includes('light')&&!n.includes('plug')&&!n.includes('socket'))mapMeshes.push(o);});
+const ray=new THREE.Raycaster(),DOWN=new THREE.Vector3(0,-1,0);
+let TRUE_FLOOR_Y=FLOOR_Y;
+{const from=new THREE.Vector3(0,mapBox.max.y+2,0);ray.set(from,DOWN);const h=ray.intersectObjects(mapMeshes,true);if(h.length)TRUE_FLOOR_Y=h[0].point.y;}
+
+function fitModel(root,size){const b=new THREE.Box3().setFromObject(root),s=new THREE.Vector3();b.getSize(s);root.scale.setScalar(size/Math.max(s.x,s.y,s.z));const b2=new THREE.Box3().setFromObject(root),c=new THREE.Vector3();b2.getCenter(c);root.position.sub(c);root.position.y-=new THREE.Box3().setFromObject(root).min.y;}
+
+function findSpawnPoint(){const cands=[];for(let x=MAP_MX;x<=MAP_XX;x+=2)for(let z=MAP_MZ;z<=MAP_XZ;z+=2){const from=new THREE.Vector3(x,mapBox.max.y+2,z);ray.set(from,DOWN);const h=ray.intersectObjects(mapMeshes,true);if(h.length)cands.push({x,z,y:h[0].point.y,dist:Math.hypot(x,z)});}if(!cands.length)return new THREE.Vector3(0,TRUE_FLOOR_Y,0);cands.sort((a,b)=>a.dist-b.dist);const p=cands[Math.floor(Math.random()*Math.min(10,cands.length))];return new THREE.Vector3(p.x,p.y,p.z);}
+function getMonsterSpawn(sp){const cands=[];for(let x=MAP_MX;x<=MAP_XX;x+=4)for(let z=MAP_MZ;z<=MAP_XZ;z+=4){const dp=sp?sp.distanceTo(new THREE.Vector3(x,0,z)):Math.hypot(x,z);if(dp<15)continue;const from=new THREE.Vector3(x,mapBox.max.y+2,z);ray.set(from,DOWN);const h=ray.intersectObjects(mapMeshes,true);if(h.length)cands.push({x,z,dp,y:h[0].point.y});}if(!cands.length)return new THREE.Vector3(MAP_XX*.7,TRUE_FLOOR_Y,MAP_XZ*.7);cands.sort((a,b)=>b.dp-a.dp);const top=cands.slice(0,Math.max(1,Math.floor(cands.length*.25)));const p=top[Math.floor(Math.random()*top.length)];return new THREE.Vector3(p.x,p.y,p.z);}
+
+const deskRoot=deskGltf.scene;deskRoot.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});fitModel(deskRoot,1.8);
+const deskPivot=new THREE.Group();deskPivot.add(deskRoot);deskPivot.position.set(4,TRUE_FLOOR_Y,-3);deskPivot.rotation.y=Math.PI*.15;scene.add(deskPivot);
+const deskTopY=new THREE.Box3().setFromObject(deskPivot).max.y;
+const flashWorldRoot=flashGltf.scene.clone();flashWorldRoot.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});fitModel(flashWorldRoot,.3);
+const flashPickupGroup=new THREE.Group();flashPickupGroup.add(flashWorldRoot);flashPickupGroup.position.set(deskPivot.position.x+.1,deskTopY+.05,deskPivot.position.z);flashWorldRoot.rotation.set(0,Math.PI*.6,Math.PI/2);
+const pickupGlow=new THREE.PointLight(0xffcc66,1.8,2.5);pickupGlow.position.copy(flashPickupGroup.position);pickupGlow.position.y+=.2;scene.add(pickupGlow);scene.add(flashPickupGroup);
+const flashHandRoot=flashGltf.scene.clone();flashHandRoot.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});fitModel(flashHandRoot,.28);
+const flashHandPivot=new THREE.Group();flashHandPivot.add(flashHandRoot);flashHandPivot.visible=false;weaponScene.add(flashHandPivot);flashHandRoot.rotation.set(-Math.PI/2,0,0);
+let vrFlashRoot=null,rightController=null,rightGrip=null;
+
+const monsterRoot=monsterGltf.scene;
+monsterRoot.traverse(o=>{if(!o.isMesh)return;o.castShadow=false;o.receiveShadow=false;[o.material].flat().forEach(m=>{if(m){m.transparent=false;m.opacity=1;m.depthWrite=true;}});});
+{const b=new THREE.Box3().setFromObject(monsterRoot),s=new THREE.Vector3();b.getSize(s);monsterRoot.scale.setScalar(2.5/Math.max(s.x,s.y,s.z));const b2=new THREE.Box3().setFromObject(monsterRoot),c=new THREE.Vector3();b2.getCenter(c);monsterRoot.position.sub(c);monsterRoot.position.y-=new THREE.Box3().setFromObject(monsterRoot).min.y;}
+const monsterPivot=new THREE.Group();monsterPivot.add(monsterRoot);monsterPivot.position.set(9999,9999,9999);scene.add(monsterPivot);
+
+prog(100,'READY');
+
+let audioCtx=null,roarBuffer=null,roarSource=null,roarGainNode=null,roarDecoded=false,roarPlaying=false;
+async function initAudio(){if(audioCtx)return;audioCtx=new(AudioContext||webkitAudioContext)();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type='sine';o.frequency.value=55;g.gain.value=.03;o.connect(g);g.connect(audioCtx.destination);o.start();roarGainNode=audioCtx.createGain();roarGainNode.gain.value=0;roarGainNode.connect(audioCtx.destination);try{const r=await fetch('roar.mp3');roarBuffer=await audioCtx.decodeAudioData(await r.arrayBuffer());roarDecoded=true;}catch(e){}}
+function startRoar(){if(!roarDecoded||roarPlaying)return;roarPlaying=true;roarSource=audioCtx.createBufferSource();roarSource.buffer=roarBuffer;roarSource.loop=true;roarSource.connect(roarGainNode);roarSource.start(0);roarGainNode.gain.cancelScheduledValues(audioCtx.currentTime);roarGainNode.gain.setTargetAtTime(1,audioCtx.currentTime,.4);}
+function stopRoar(){if(!roarPlaying||!roarSource)return;roarPlaying=false;roarGainNode.gain.cancelScheduledValues(audioCtx.currentTime);roarGainNode.gain.setTargetAtTime(0,audioCtx.currentTime,.6);const s=roarSource;roarSource=null;setTimeout(()=>{try{s.stop();}catch(e){}},2000);}
+
+const WDIRS=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
+function wallHit(pos,dir){ray.set(pos,dir);const h=ray.intersectObjects(mapMeshes,false);return h.length&&h[0].distance<.55?h[0]:null;}
+function snapFloor(pos){const from=pos.clone();from.y+=2;ray.set(from,DOWN);const h=ray.intersectObjects(mapMeshes,false);pos.y=h.length&&h[0].distance<5?h[0].point.y:TRUE_FLOOR_Y;}
+
+const keys={};let yaw=0,pitch=0,locked=false;
+addEventListener('keydown',e=>{keys[e.code]=true;if(e.code==='KeyF'&&gameActive)toggleFlash();if(e.code==='KeyE'&&gameActive)tryPickup();});
+addEventListener('keyup',e=>keys[e.code]=false);
+canvas.addEventListener('click',()=>{if(gameActive&&!isVR&&!mobile())canvas.requestPointerLock();});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;});
+document.addEventListener('mousemove',e=>{if(!locked||!gameActive||isVR)return;yaw-=e.movementX*.002;pitch=Math.max(-1,Math.min(.7,pitch-e.movementY*.002));});
+const mobile=()=>/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)||innerWidth<700;
+const joyM={x:0,y:0},joyL={x:0,y:0};
+function mkJoy(zid,kid,out){const z=$(zid),k=$(kid),R=65;let cx=0,cy=0;z.addEventListener('touchstart',e=>{e.preventDefault();const r=z.getBoundingClientRect();cx=r.left+r.width/2;cy=r.top+r.height/2;},{passive:false});z.addEventListener('touchmove',e=>{e.preventDefault();let dx=e.touches[0].clientX-cx,dy=e.touches[0].clientY-cy;const d=Math.hypot(dx,dy);if(d>R){dx*=R/d;dy*=R/d;}out.x=dx/R;out.y=dy/R;k.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;},{passive:false});const end=()=>{out.x=0;out.y=0;k.style.transform='translate(-50%,-50%)';};z.addEventListener('touchend',end);z.addEventListener('touchcancel',end);}
+mkJoy('joyZone','joyKnob',joyM);mkJoy('lkZone','lkKnob',joyL);
+$('mobileFlBtn').addEventListener('click',()=>{if(gameActive)toggleFlash();});
+
+let isVR=false,xrSession=null,vrTriggerWas=false;
+if(navigator.xr){navigator.xr.isSessionSupported('immersive-vr').then(ok=>{if(ok){$('vrBtn').style.display=$('restartVrBtn').style.display='inline-block';}else{$('vrNote').textContent='WebXR not supported';$('vrNote').style.display='block';}}).catch(()=>{$('vrNote').textContent='WebXR not supported';$('vrNote').style.display='block';});}
+
+async function enterVR(){
+  try{
+    await initAudio();
+    const s=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor'],optionalFeatures:['bounded-floor','hand-tracking']});
+    await renderer.xr.setSession(s);xrSession=s;isVR=true;
+    rightController=renderer.xr.getController(1);rightGrip=renderer.xr.getControllerGrip(1);scene.add(rightController);scene.add(rightGrip);
+    vrFlashRoot=flashGltf.scene.clone();vrFlashRoot.traverse(o=>{if(o.isMesh){o.castShadow=false;o.receiveShadow=false;}});fitModel(vrFlashRoot,.22);vrFlashRoot.rotation.set(-Math.PI/2,0,0);vrFlashRoot.position.set(0,0,-.05);vrFlashRoot.visible=false;rightGrip.add(vrFlashRoot);
+    const vrSpot=new THREE.SpotLight(0xfff8e0,0,35,Math.PI/7,.12,.8),vrTgt=new THREE.Object3D();vrTgt.position.set(0,0,-1);rightController.add(vrSpot);rightController.add(vrTgt);vrSpot.target=vrTgt;rightController.userData.spot=vrSpot;
+    s.addEventListener('end',()=>{isVR=false;xrSession=null;});
+    resetGame();gameActive=true;$('overlay').style.display=$('deathScreen').style.display='none';$('hud').style.display=$('xhair').style.display='block';
+  }catch(e){console.error('VR:',e);}
+}
+$('vrBtn').addEventListener('click',enterVR);$('restartVrBtn').addEventListener('click',enterVR);
+
+function getVRLeftStick(){const s=renderer.xr.getSession();if(!s)return{x:0,y:0};for(const src of s.inputSources){if(!src.gamepad||src.handedness!=='left')continue;const a=src.gamepad.axes;return{x:a.length>=4?a[2]:a[0]||0,y:a.length>=4?a[3]:a[1]||0};}for(const src of s.inputSources||[]){if(!src.gamepad)continue;const a=src.gamepad.axes,x=a.length>=4?a[2]:a[0]||0,y=a.length>=4?a[3]:a[1]||0;if(Math.abs(x)>.08||Math.abs(y)>.08)return{x,y};}return{x:0,y:0};}
+function checkVRTrigger(){const s=renderer.xr.getSession();if(!s)return;for(const src of s.inputSources){if(!src.gamepad||src.handedness!=='right')continue;const p=src.gamepad.buttons[0]?.pressed;if(p&&!vrTriggerWas){vrTriggerWas=true;if(!hasFlash)tryPickup();else toggleFlash();}if(!p)vrTriggerWas=false;}}
+
+let hasFlash=false,flashOn=false,flashPickedUp=false;const PICKUP_DIST=2.5;let handBobTime=0,flashPickupAnimT=0;
+function toggleFlash(){if(!hasFlash)return;flashOn=!flashOn;flashSpot.intensity=flashOn?4.5:0;flashHandPivot.visible=flashOn;weaponFill.intensity=flashOn?.8:0;if(rightController?.userData.spot)rightController.userData.spot.intensity=flashOn?4.5:0;if(vrFlashRoot)vrFlashRoot.visible=flashOn;updateFlashUI();}
+function updateFlashUI(){$('flashStatus').style.display=hasFlash?'block':'none';if(hasFlash)$('flashStatus').textContent=flashOn?'🔦 ON  [F]':'🔦 OFF [F]';}
+function tryPickup(){if(flashPickedUp)return;const pp=new THREE.Vector3();worldCam.getWorldPosition(pp);if(Math.hypot(pp.x-flashPickupGroup.position.x,pp.z-flashPickupGroup.position.z)<PICKUP_DIST){hasFlash=true;flashPickedUp=true;flashPickupGroup.visible=false;pickupGlow.visible=false;flashOn=true;flashSpot.intensity=4.5;flashHandPivot.visible=true;weaponFill.intensity=.8;flashPickupAnimT=0;if(vrFlashRoot)vrFlashRoot.visible=true;if(rightController?.userData.spot)rightController.userData.spot.intensity=4.5;updateFlashUI();$('pickupPrompt').style.display='none';}}
+
+let gameActive=false,isDead=false,monsterChasing=false;
+const MONSTER_SPEED=2.4,MONSTER_FLASH_BACK=5.0,KILL_DIST=1.2,ROAR_START=22,ROAR_STOP=28;
+let graceTimer=8;const LOOK_S=.04,DEAD=.08;
+
+function resetGame(){const sp=findSpawnPoint();playerRig.position.set(sp.x,sp.y,sp.z);worldCam.position.set(0,PLAYER_H,0);worldCam.rotation.set(0,0,0);yaw=0;pitch=0;graceTimer=8;monsterChasing=false;monsterPivot.position.copy(getMonsterSpawn(sp));hasFlash=false;flashOn=false;flashPickedUp=false;flashPickupGroup.visible=true;pickupGlow.visible=true;flashSpot.intensity=0;flashHandPivot.visible=false;weaponFill.intensity=0;if(vrFlashRoot)vrFlashRoot.visible=false;if(rightController?.userData.spot)rightController.userData.spot.intensity=0;updateFlashUI();isDead=false;handBobTime=0;stopRoar();}
+function startGame(){$('overlay').style.display=$('deathScreen').style.display='none';$('hud').style.display=$('xhair').style.display='block';if(isVR){$('joyZone').style.display=$('lkZone').style.display='none';}else if(mobile()){$('joyZone').style.display=$('lkZone').style.display=$('mobileFlBtn').style.display='block';}else{canvas.requestPointerLock();}resetGame();gameActive=true;}
+$('startBtn').addEventListener('click',()=>{initAudio();startGame();});
+$('restartBtn').addEventListener('click',()=>{initAudio();startGame();});
+window.addEventListener('resize',()=>{worldCam.aspect=innerWidth/innerHeight;worldCam.updateProjectionMatrix();weaponCam.aspect=innerWidth/innerHeight;weaponCam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
+
+const clock=new THREE.Clock(),euler=new THREE.Euler(0,0,0,'YXZ');
+const vig=$('vig'),distEl=$('mDist'),ppEl=$('pickupPrompt');
+renderer.setAnimationLoop(()=>{
+  const dt=Math.min(clock.getDelta(),.05),t=clock.elapsedTime;
+  for(const{l,base,ph}of fillLights)l.intensity=base*(.9+.1*Math.sin(t*9+ph)*Math.sin(t*4.1+ph));
+  if(isVR&&gameActive)checkVRTrigger();
+  if(!isVR&&gameActive){if(Math.abs(joyL.x)>DEAD)yaw-=joyL.x*LOOK_S;if(Math.abs(joyL.y)>DEAD)pitch=Math.max(-1,Math.min(.7,pitch-joyL.y*LOOK_S));euler.set(pitch,yaw,0);worldCam.quaternion.setFromEuler(euler);}
+  if(gameActive&&!isDead){
+    const moveBody=mv=>{if(mv.lengthSq()<.001)return false;mv.normalize();const np=playerRig.position.clone().addScaledVector(mv,4.5*dt);const chk=np.clone();chk.y=TRUE_FLOOR_Y+PLAYER_H*.5;for(const dir of WDIRS){const h=wallHit(chk,dir);if(h){const n=h.face?h.face.normal.clone().normalize():dir.clone().negate();np.addScaledVector(n,.55-h.distance);}}playerRig.position.copy(np);if(!isVR)snapFloor(playerRig.position);else playerRig.position.y=TRUE_FLOOR_Y;handBobTime+=dt;return true;};
+    let walking=false;
+    if(isVR){const stk=getVRLeftStick();if(Math.abs(stk.x)>.08||Math.abs(stk.y)>.08){const hf=new THREE.Vector3();worldCam.getWorldDirection(hf);hf.y=0;if(hf.lengthSq()<.001)hf.set(0,0,-1);hf.normalize();const hr=new THREE.Vector3().crossVectors(hf,new THREE.Vector3(0,1,0)).normalize();walking=moveBody(new THREE.Vector3().addScaledVector(hf,-stk.y).addScaledVector(hr,stk.x));}}
+    else{const fwd=new THREE.Vector3(-Math.sin(yaw),0,-Math.cos(yaw)),rgt=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)),mv=new THREE.Vector3();if(keys['KeyW']||keys['ArrowUp'])mv.addScaledVector(fwd,1);if(keys['KeyS']||keys['ArrowDown'])mv.addScaledVector(fwd,-1);if(keys['KeyA']||keys['ArrowLeft'])mv.addScaledVector(rgt,-1);if(keys['KeyD']||keys['ArrowRight'])mv.addScaledVector(rgt,1);if(Math.abs(joyM.x)>DEAD||Math.abs(joyM.y)>DEAD){mv.addScaledVector(fwd,-joyM.y);mv.addScaledVector(rgt,joyM.x);}walking=moveBody(mv);if(!walking)handBobTime+=dt*.05;}
+    if(playerRig.position.y<TRUE_FLOOR_Y-.5)playerRig.position.y=TRUE_FLOOR_Y;
+    const pw=new THREE.Vector3();worldCam.getWorldPosition(pw);
+    if(!flashPickedUp){flashWorldRoot.rotation.y+=dt*.8;pickupGlow.intensity=1.5+.4*Math.sin(t*2.5);ppEl.style.display=Math.hypot(pw.x-flashPickupGroup.position.x,pw.z-flashPickupGroup.position.z)<PICKUP_DIST?'block':'none';}else ppEl.style.display='none';
+    if(!isVR&&flashHandPivot.visible){worldCam.getWorldQuaternion(weaponCam.quaternion);weaponCam.position.copy(pw);if(flashPickupAnimT<1)flashPickupAnimT=Math.min(1,flashPickupAnimT+dt*3);const ease=1-Math.pow(1-flashPickupAnimT,3),baseY=THREE.MathUtils.lerp(-.8,-.28,ease),bobX=walking?Math.sin(handBobTime*5.5)*.012:0,bobY=walking?Math.abs(Math.sin(handBobTime*5.5))*.008:0;flashHandPivot.position.set(.22+bobX,baseY+bobY+Math.sin(t*.8)*.004,-.38);flashHandPivot.rotation.set(.08+(walking?Math.sin(handBobTime*5.5)*.02:0),-.18,.04+bobX*.5);}
+    if(graceTimer>0)graceTimer-=dt;
+    let flashOnMonster=false;if(flashOn){const lf=new THREE.Vector3();if(isVR&&rightController)rightController.getWorldDirection(lf);else worldCam.getWorldDirection(lf);flashOnMonster=lf.dot(new THREE.Vector3().subVectors(monsterPivot.position,pw).normalize())>0.82;}
+    const toP=new THREE.Vector3().subVectors(pw,monsterPivot.position);toP.y=0;const dist=toP.length();
+    if(graceTimer>0){monsterChasing=false;if(dist>20){monsterPivot.position.addScaledVector(toP.clone().normalize(),.8*dt);monsterPivot.lookAt(pw.x,monsterPivot.position.y,pw.z);}}
+    else if(flashOnMonster){monsterChasing=false;monsterPivot.position.addScaledVector(toP.clone().negate().normalize(),MONSTER_FLASH_BACK*dt);monsterPivot.position.y=TRUE_FLOOR_Y;}
+    else{monsterChasing=true;if(dist>.1){monsterPivot.position.addScaledVector(toP.clone().normalize(),MONSTER_SPEED*dt);monsterPivot.position.y=TRUE_FLOOR_Y;monsterPivot.lookAt(pw.x,monsterPivot.position.y,pw.z);}}
+    monsterRoot.position.y=Math.sin(t*2.2)*.09;
+    monsterLight.position.set(monsterPivot.position.x,monsterPivot.position.y+1.5,monsterPivot.position.z);
+    if(audioCtx&&roarDecoded){if(monsterChasing&&dist<ROAR_START){if(!roarPlaying)startRoar();roarGainNode.gain.setTargetAtTime(Math.max(.3,Math.min(1,(ROAR_START-dist)/ROAR_START+.3)),audioCtx.currentTime,.1);}else if(!monsterChasing||dist>ROAR_STOP){if(roarPlaying)stopRoar();}}
+    if(dist<KILL_DIST&&graceTimer<=0&&!flashOnMonster){isDead=true;gameActive=false;stopRoar();$('joyZone').style.display=$('lkZone').style.display='none';$('mobileFlBtn').style.display='none';$('hud').style.display=$('xhair').style.display='none';vig.style.background='radial-gradient(ellipse at center,rgba(180,0,0,.5) 0%,rgba(180,0,0,.95) 100%)';if(xrSession)xrSession.end();if(document.pointerLockElement)document.exitPointerLock();setTimeout(()=>{$('deathScreen').style.display='flex';vig.style.background='';},900);}
+    const danger=Math.max(0,1-dist/14),r=Math.round(danger*190);
+    vig.style.background=danger>.05?`radial-gradient(ellipse at center,transparent ${Math.round(38-danger*18)}%,rgba(${r},0,0,${(danger*.7).toFixed(2)}) 100%)`:'';
+    distEl.textContent=dist<5?'⚠ ENTITY NEAR ⚠':dist<10?'entity detected':'';
+  }
+  renderer.autoClear=true;renderer.render(scene,worldCam);
+  if(!isVR&&flashHandPivot.visible){renderer.autoClear=false;renderer.clearDepth();renderer.render(weaponScene,weaponCam);renderer.autoClear=true;}
+});
+
+$('splash').style.display='none';
+$('overlay').style.display='flex';
+})();
+</script>
+</body>
+</html>
